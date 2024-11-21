@@ -36,18 +36,20 @@ class ABC:
 
         txt = self.output_re.match(self._readline()).group(2)
         matches = self.stats_re.match(txt)
-        stats = {
-            "num_inputs": int(matches.group(1)),
-            "num_outputs": int(matches.group(2)),
-            "num_latches": int(matches.group(3)),
-            "num_ands": int(matches.group(4)),
-            "num_levels": int(matches.group(5))
-        }
+        stats = [
+            int(matches.group(1)), # primary inputs
+            int(matches.group(2)), # primary outputs
+            int(matches.group(3)), # number of latches
+            int(matches.group(4)), # number of and gates
+            int(matches.group(5)) # number of levels
+        ]
 
         self._writeline("write temp.aig")
         output = subprocess.run(["./get_stats", "temp.aig"], capture_output=True, text=True)
         os.remove("temp.aig")
-        stats["total_nodes"], stats["total_edges"], stats["not_gates"] = map(int, output.stdout.strip().split())
+
+        total_nodes, total_edges, not_gates = map(int, output.stdout.strip().split())
+        stats.extend([total_nodes, total_edges, not_gates])
 
         return stats
     
@@ -112,6 +114,20 @@ class ABC:
             return output, self.print_stats(write=False)
         return output
 
+    def resub(self, zero_cost=False):
+        command = " -z" if zero_cost else ""
+        self._writeline(f"resub{command}")
+
+        if self.is_training:
+            return self.print_stats()
+        
+    def refactor(self, zero_cost=False):
+        command = " -z" if zero_cost else ""
+        self._writeline(f"refactor{command}")
+
+        if self.is_training:
+            return self.print_stats()
+    
     def cec(self):
         self._writeline("cec")
         self._writeline("print_stats")
