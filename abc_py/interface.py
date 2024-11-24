@@ -1,7 +1,7 @@
 import subprocess
 import os
 import re
-
+import time
 
 class ABC:
     def __init__(self, executable_path="~/abc/executable/abc", train=True):
@@ -12,7 +12,7 @@ class ABC:
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         self.first_stdout = False
         self.output_re = re.compile(r"^(abc\s\d\d+>\s)+(.+)$")
-        self.stats_re = re.compile(r"^.+i/o\s+=\s+(\d+)/\s+(\d+)\s+lat\s+=\s+(\d+)\s+and\s+=\s+(\d+)\s+lev\s+=\s+(\d+)\s*$")
+        self.stats_re = re.compile(r"^.+i/o\s*=\s*(\d+)/\s*(\d+)\s*lat\s*=\s*(\d+)\s*and\s*=\s*(\d+)\s*lev\s*=\s*(\d+)\s*$")
         self.verbose_rewrite_re = re.compile(r"^Rewriting\sstatistics:\sTotal\scuts\stries\s*=\s*(\d+).+\sBad\scuts\sfound\s*=\s*(\d+).+\sTotal\ssubgraphs\s*=\s*(\d+).+\sUsed\sNPN\sclasses\s*=\s*(\d+).+\sNodes\sconsidered\s*=\s*(\d+).+\sNodes\srewritten\s*=\s*(\d+).+\sGain\s*=\s*(\d+).+\(\s+(\d+\.\d+)\s*\%\)(.+\s)+TOTAL\s*=\s*(\d+\.\d+).+$")
         self.cec_re = re.compile(r"^Networks\sare\s+(.+)\.\s*Time\s*=\s*(\d+\.\d+)\s*sec$")
         self.is_training = train
@@ -45,10 +45,14 @@ class ABC:
         ]
 
         self._writeline("write temp.aig")
+        time.sleep(0.1)
         output = subprocess.run(["./get_stats", "temp.aig"], capture_output=True, text=True)
-        os.remove("temp.aig")
+        try:
+            total_nodes, total_edges, not_gates = map(int, output.stdout.strip().split())
+            os.remove("temp.aig")
+        except ValueError:
+            raise ValueError("Error in parsing get_stats output")
 
-        total_nodes, total_edges, not_gates = map(int, output.stdout.strip().split())
         stats.extend([total_nodes, total_edges, not_gates])
 
         return stats
@@ -114,15 +118,27 @@ class ABC:
             return output, self.print_stats(write=False)
         return output
 
-    def resub(self, zero_cost=False):
-        command = " -z" if zero_cost else ""
+    def resub(self, preserve_levels=True, zero_cost=False):
+        command = " -" if (not preserve_levels) or zero_cost else ""
+
+        if not preserve_levels:
+            command += "l"
+        if zero_cost:
+            command += "z"
+
         self._writeline(f"resub{command}")
 
         if self.is_training:
             return self.print_stats()
         
-    def refactor(self, zero_cost=False):
-        command = " -z" if zero_cost else ""
+    def refactor(self, preserve_levels=True, zero_cost=False):
+        command = " -" if (not preserve_levels) or zero_cost else ""
+
+        if not preserve_levels:
+            command += "l"
+        if zero_cost:
+            command += "z"
+
         self._writeline(f"refactor{command}")
 
         if self.is_training:
