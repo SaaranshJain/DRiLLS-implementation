@@ -45,7 +45,6 @@ void parse_binary_aiger(const char *file_path) {
 
     // Initialize counters
     int not_gates = 0;
-    int total_edges = 0;
 
     // Skip inputs (I literals)
     for (int i = 0; i < I; i++) {
@@ -63,7 +62,7 @@ void parse_binary_aiger(const char *file_path) {
     for (int i = 0; i < O; i++) {
         uint32_t lit;
         fread(&lit, sizeof(uint32_t), 1, f);
-        total_edges++;
+        
         if (lit % 2 == 1) { // Check if complemented
             not_gates++;
         }
@@ -91,13 +90,9 @@ void parse_binary_aiger(const char *file_path) {
         if (rhs1 % 2 == 1) {
             not_gates++;
         }
-
-        total_edges += 2; // Two edges for each AND gate
     }
 
-    // Total edges include those for AND gate outputs
-    total_edges += A;
-    printf("%d %d %d\n", M, total_edges, not_gates);
+    printf("%d\n", not_gates);
     fclose(f);
 }
 
